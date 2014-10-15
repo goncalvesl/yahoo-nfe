@@ -15,27 +15,32 @@ import javax.mail.Session;
 import javax.mail.Store;
 import javax.mail.search.FlagTerm;
 
-public class VerifyEmail implements Runnable {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+public class VerifyEmail implements Runnable {
+	private static final String IMAP = "imap.mail.yahoo.com";
+	private static final Logger LOG = LoggerFactory.getLogger(VerifyEmail.class);
+	
 	public void run() {
-		Properties props = new Properties();
 		try {
-			InputStream input = App.class.getClassLoader().getResourceAsStream("config.properties");
-			props.load(input);
-			Session session = Session.getDefaultInstance(props, null);
+			Session session = Session.getDefaultInstance(new Properties(), null);
 
 			Store store = session.getStore("imaps");
-			store.connect(props.getProperty("imap"), props.getProperty("user"), props.getProperty("pass"));
+			store.connect(IMAP, App.user, App.pass);
 
 			Folder inbox = store.getFolder("inbox");
 			inbox.open(Folder.READ_WRITE);
-
+			LOG.info("Conectado");
+			
 			Flags seen = new Flags(Flags.Flag.SEEN);
 			FlagTerm unseenFlagTerm = new FlagTerm(seen, false);
 			Message[] messages = inbox.search(unseenFlagTerm);
 			int messageCount = messages.length;
+			LOG.info("Mensagens a serem procesadas: " + messageCount);
 			
 			for (Message message : messages) {
+				
 				Multipart multipart = (Multipart) message.getContent();
 				for (int i = 0; i < multipart.getCount(); i++) {
 					BodyPart bodyPart = multipart.getBodyPart(i);
@@ -49,7 +54,7 @@ public class VerifyEmail implements Runnable {
 					
 					//message.setFlag(Flags.Flag.SEEN, true);
 					InputStream is = bodyPart.getInputStream();
-					File f = new File(props.getProperty("pasta"), bodyPart.getFileName());
+					File f = new File(App.dir, bodyPart.getFileName());
 					System.out.println("Salvando Arquivo" + f.getAbsolutePath());
 					FileOutputStream fos = new FileOutputStream(f);
 					byte[] buf = new byte[4096];
